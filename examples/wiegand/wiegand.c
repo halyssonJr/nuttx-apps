@@ -23,7 +23,10 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <inttypes.h>
 #include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <nuttx/wiegand/wiegand.h>
 
 /****************************************************************************
@@ -36,6 +39,13 @@
 
 int main(int argc, FAR char *argv[])
 {
-  printf("Hey my friend\n");
+  int fd;
+  fd = open ("/dev/wiega0",O_RDONLY);
+  if( fd < 0)
+  {
+    printf("Erro: Failed to open \n");
+  }
+  
+  close (fd);
   return 0;
 }
