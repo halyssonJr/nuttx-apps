@@ -22,9 +22,11 @@
  * Included Files
  ****************************************************************************/
 
-#include <pthread.h>
-#include <stdio.h>
+#include <assert.h>
 #include <errno.h>
+#include <pthread.h>
+#include <sched.h>
+#include <stdio.h>
 #include <unistd.h>
 
 /****************************************************************************
@@ -202,8 +204,7 @@ static void test_timeout(void)
    * usable state after deferred cancellation.
    */
 
-#ifdef CONFIG_PTHREAD_CLEANUP
-#ifdef CONFIG_CANCELLATION_POINTS
+#if CONFIG_PTHREAD_CLEANUP_STACKSIZE > 0 && defined(CONFIG_CANCELLATION_POINTS)
   status = pthread_rwlock_trywrlock(&write_lock);
   if (status != EBUSY)
     {
@@ -253,8 +254,10 @@ static void test_timeout(void)
              "ERROR pthread_rwlock_wrlock, status=%d\n", status);
       ASSERT(false);
     }
-#endif /* CONFIG_CANCELLATION_POINTS */
-#endif /* CONFIG_PTHREAD_CLEANUP */
+#endif /* CONFIG_PTHREAD_CLEANUP_STACKSIZE > 0 && CONFIG_CANCELLATION_POINTS */
+
+    pthread_rwlock_destroy(&write_lock);
+    pthread_rwlock_destroy(&read_lock);
 }
 
 /****************************************************************************

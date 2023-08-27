@@ -83,6 +83,7 @@ FAR const char *g_wapi_essid_flags[] =
 {
   "WAPI_ESSID_OFF",
   "WAPI_ESSID_ON",
+  "WAPI_ESSID_DELAY_ON",
   NULL
 };
 
@@ -128,6 +129,17 @@ FAR const char *g_wapi_alg_flags[] =
   "WPA_ALG_WEP",
   "WPA_ALG_TKIP",
   "WPA_ALG_CCMP",
+  NULL
+};
+
+/* Passphrase WPA Version */
+
+FAR const char *g_wapi_wpa_ver_flags[] =
+{
+  "WPA_VER_NONE",
+  "WPA_VER_1",
+  "WPA_VER_2",
+  "WPA_VER_3",
   NULL
 };
 
@@ -207,7 +219,7 @@ static int wapi_parse_mode(int iw_mode, FAR enum wapi_mode_e *wapi_mode)
 
     default:
       WAPI_ERROR("ERROR: Unknown mode: %d\n", iw_mode);
-      return -1;
+      return -EINVAL;
     }
 }
 
@@ -252,7 +264,7 @@ static void wapi_event_stream_init(FAR struct wapi_event_stream_s *stream,
 static int wapi_event_stream_extract(FAR struct wapi_event_stream_s *stream,
                                      FAR struct iw_event *iwe)
 {
-  int ret;
+  int ret = 1;
   FAR struct iw_event *iwe_stream;
 
   if (stream->current + offsetof(struct iw_event, u) > stream->end)
@@ -267,10 +279,8 @@ static int wapi_event_stream_extract(FAR struct wapi_event_stream_s *stream,
   if (stream->current + iwe_stream->len > stream->end ||
       iwe_stream->len < offsetof(struct iw_event, u))
     {
-      return -1;
+      return -EINVAL;
     }
-
-  ret = 1;
 
   switch (iwe_stream->cmd)
     {
@@ -336,7 +346,7 @@ static int wapi_scan_event(FAR struct iw_event *event,
         if (!temp)
           {
             WAPI_STRERROR("malloc()");
-            return -1;
+            return -ENOMEM;
           }
 
         /* Reset it. */
@@ -511,7 +521,7 @@ int wapi_get_freq(int sock, FAR const char *ifname, FAR double *freq,
       else
         {
           WAPI_ERROR("ERROR: Unknown flag: %d\n", wrq.u.freq.flags);
-          return -1;
+          return -EINVAL;
         }
 
       /* Set freq. */
@@ -971,7 +981,7 @@ int wapi_get_bitrate(int sock, FAR const char *ifname,
       if (wrq.u.bitrate.disabled)
         {
           WAPI_ERROR("ERROR: Bitrate is disabled\n");
-          return -1;
+          return -EINVAL;
         }
 
       /* Get bitrate. */
@@ -1075,7 +1085,7 @@ int wapi_get_txpower(int sock, FAR const char *ifname, FAR int *power,
 
       if (wrq.u.txpower.disabled)
         {
-          return -1;
+          return -EINVAL;
         }
 
       /* Get flag. */
@@ -1094,7 +1104,7 @@ int wapi_get_txpower(int sock, FAR const char *ifname, FAR int *power,
 
           default:
             WAPI_ERROR("ERROR: Unknown flag: %d\n", wrq.u.txpower.flags);
-            return -1;
+            return -EINVAL;
         }
 
       /* Get power. */
@@ -1309,7 +1319,7 @@ int wapi_scan_coll(int sock, FAR const char *ifname,
   if (!buf)
     {
       WAPI_STRERROR("malloc()");
-      return -1;
+      return -ENOMEM;
     }
 
 alloc:
@@ -1332,7 +1342,7 @@ alloc:
         {
           WAPI_STRERROR("realloc()");
           free(buf);
-          return -1;
+          return -ENOMEM;
         }
 
       buf = tmp;

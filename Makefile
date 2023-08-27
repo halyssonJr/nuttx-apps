@@ -20,6 +20,7 @@
 
 export APPDIR = $(CURDIR)
 include $(APPDIR)/Make.defs
+include $(APPDIR)/tools/Wasm.mk
 
 # The GNU make CURDIR will always be a POSIX-like path with forward slashes
 # as path segment separators.  This is fine for the above inclusions but
@@ -28,7 +29,7 @@ include $(APPDIR)/Make.defs
 # use
 
 ifeq ($(CONFIG_WINDOWS_NATIVE),y)
-export APPDIR = $(subst /,\,$(CURDIR))
+  export APPDIR = $(subst /,\,$(CURDIR))
 endif
 
 # Symbol table for loadable apps.
@@ -101,6 +102,7 @@ $(BIN): $(foreach SDIR, $(CONFIGURED_APPS), $(SDIR)_all)
 	$(Q) for app in ${CONFIGURED_APPS}; do \
 		$(MAKE) -C "$${app}" archive ; \
 	done
+	$(call LINK_WASM)
 endif
 
 else
@@ -118,6 +120,7 @@ $(SYMTABOBJ): %$(OBJEXT): %.c
 
 $(BIN): $(SYMTABOBJ)
 	$(call ARCHIVE_ADD, $(call CONVERT_PATH,$(BIN)), $^)
+	$(call LINK_WASM)
 
 endif # !CONFIG_BUILD_LOADABLE
 
@@ -211,4 +214,5 @@ distclean: $(foreach SDIR, $(CLEANDIRS), $(SDIR)_distclean)
 	$(call DELFILE, $(BIN))
 	$(call DELFILE, Kconfig)
 	$(call DELDIR, $(BINDIR))
+	$(call DELDIR, wasm)
 	$(call CLEAN)

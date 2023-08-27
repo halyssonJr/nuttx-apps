@@ -22,9 +22,13 @@
  * Included Files
  ****************************************************************************/
 
-#include <stdio.h>
+#include <assert.h>
 #include <pthread.h>
+#include <sched.h>
+#include <stdio.h>
 #include <unistd.h>
+#include <semaphore.h>
+
 #include "ostest.h"
 
 /****************************************************************************
@@ -56,6 +60,7 @@ static int signaler_nloops = 0;
 static int signaler_already = 0;
 static int signaler_state = 0;
 static int signaler_nerrors = 0;
+static sem_t sem_thread_started;
 
 /****************************************************************************
  * Private Functions
@@ -75,6 +80,7 @@ static void *thread_waiter(void *parameter)
       status       = pthread_mutex_lock(&mutex);
       waiter_state = RUNNING;
 
+      sem_post(&sem_thread_started);
       if (status != 0)
         {
           printf("waiter_thread: "
@@ -216,7 +222,10 @@ static void *thread_signaler(void *parameter)
        * To avoid this situaltion, we add the following usleep()
        */
 
-      usleep(10 * 1000);
+      while (data_available == 1)
+        {
+          usleep(10 * 1000);
+        }
 #endif
 
       signaler_nloops++;
@@ -244,6 +253,8 @@ void cond_test(void)
   int prio_max;
   int prio_mid;
   int status;
+
+  sem_init(&sem_thread_started, 0, 0);
 
   /* Initialize the mutex */
 
@@ -299,6 +310,8 @@ void cond_test(void)
       printf("cond_test: pthread_create failed, status=%d\n", status);
     }
 
+  sem_wait(&sem_thread_started);
+
   printf("cond_test: Starting signaler\n");
   status = pthread_attr_init(&attr);
   if (status != 0)
@@ -335,6 +348,9 @@ void cond_test(void)
   printf("cond_test: signaler terminated, now cancel the waiter\n");
   pthread_detach(waiter);
   pthread_cancel(waiter);
+  pthread_cond_destroy(&cond);
+  pthread_mutex_destroy(&mutex);
+  sem_destroy(&sem_thread_started);
 
   printf("cond_test: \tWaiter\tSignaler\n");
   printf("cond_test: Loops\t%d\t%d\n", waiter_nloops, signaler_nloops);

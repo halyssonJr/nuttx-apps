@@ -24,10 +24,11 @@
 
 #include <nuttx/config.h>
 
+#include <assert.h>
+#include <errno.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <time.h>
-#include <pthread.h>
-#include <errno.h>
 #include <unistd.h>
 
 #include "ostest.h"
@@ -200,6 +201,14 @@ void robust_test(void)
       ASSERT(false);
       nerrors++;
     }
+
+  /* Make sure waiter exit completely */
+
+  do
+    {
+      sleep(1);
+    }
+  while (kill(g_robust_mutex.pid, 0) == 0 || errno != ESRCH);
 
   /* Make the mutex consistent and try again.  It should succeed this time. */
 

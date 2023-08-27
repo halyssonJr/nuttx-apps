@@ -416,7 +416,7 @@
  */
 
 #ifndef CONFIG_NSH_NESTDEPTH
-# define CONFIG_NSH_NESTDEPTH 3
+#  define CONFIG_NSH_NESTDEPTH 3
 #endif
 
 /* Define to enable dumping of all input/output buffers */
@@ -426,7 +426,7 @@
 /* Make sure that the home directory is defined */
 
 #ifndef CONFIG_LIBC_HOMEDIR
-# define CONFIG_LIBC_HOMEDIR "/"
+#  define CONFIG_LIBC_HOMEDIR "/"
 #endif
 
 #undef NSH_HAVE_VARS
@@ -571,9 +571,14 @@
 #  undef NSH_HAVE_READFILE
 #endif
 
-/* nsh_foreach_direntry used by the ls and ps commands */
+/* nsh_foreach_direntry used by the commands:
+ * ls, ps, fdinfo, rptun, pmconfig
+ */
 
-#if defined(CONFIG_NSH_DISABLE_LS) && defined(CONFIG_NSH_DISABLE_PS)
+#if defined(CONFIG_NSH_DISABLE_LS) && defined(CONFIG_NSH_DISABLE_PS) && \
+    defined(CONFIG_NSH_DISABLE_FDINFO) && \
+    defined(CONFIG_NSH_DISABLE_RPTUN) && \
+    defined(CONFIG_NSH_DISABLE_PMCONFIG)
 #  undef NSH_HAVE_FOREACH_DIRENTRY
 #endif
 
@@ -715,6 +720,25 @@ struct nsh_parser_s
 #endif
 };
 
+#ifdef CONFIG_NSH_ALIAS
+struct nsh_alias_s
+{
+  FAR struct nsh_alias_s *next;    /* Single link list for traversing */
+  FAR char               *name;    /* Name of the alias */
+  FAR char               *value;   /* Value behind the name */
+  union
+  {
+    struct
+    {
+      uint8_t             exp : 1; /* Already expanded ? */
+      uint8_t             rem : 1; /* Marked for deletion */
+    };
+
+    uint8_t               flags;   /* Raw value */
+  };
+};
+#endif
+
 /* This is the general form of a command handler */
 
 struct nsh_vtbl_s; /* Defined in nsh_console.h */
@@ -791,6 +815,13 @@ int nsh_romfsetc(void);
 int nsh_usbconsole(void);
 #else
 #  define nsh_usbconsole() (-ENOSYS)
+#endif
+
+#ifdef CONFIG_NSH_ALIAS
+FAR struct nsh_alias_s *nsh_aliasfind(FAR struct nsh_vtbl_s *vtbl,
+                                      FAR const char *token);
+void nsh_aliasfree(FAR struct nsh_vtbl_s *vtbl,
+                   FAR struct nsh_alias_s *alias);
 #endif
 
 #ifndef CONFIG_NSH_DISABLESCRIPT
@@ -925,6 +956,9 @@ void nsh_usbtrace(void);
 #ifndef CONFIG_NSH_DISABLE_PS
   int cmd_ps(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv);
 #endif
+#if defined(CONFIG_FS_PROCFS) && !defined(CONFIG_NSH_DISABLE_FDINFO)
+  int cmd_fdinfo(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv);
+#endif
 #ifndef CONFIG_NSH_DISABLE_XD
   int cmd_xd(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv);
 #endif
@@ -999,7 +1033,7 @@ int cmd_irqinfo(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv);
 #  ifndef CONFIG_NSH_DISABLE_RMDIR
   int cmd_rmdir(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv);
 #  endif
-# endif /* NSH_HAVE_DIROPTS */
+#endif /* NSH_HAVE_DIROPTS */
 
 #ifndef CONFIG_DISABLE_MOUNTPOINT
 #  if defined(CONFIG_DEV_LOOP) && !defined(CONFIG_NSH_DISABLE_LOSETUP)
@@ -1123,6 +1157,14 @@ int cmd_irqinfo(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv);
 int cmd_pmconfig(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv);
 #endif
 
+#if defined(CONFIG_BOARDCTL_SWITCH_BOOT) && !defined(CONFIG_NSH_DISABLE_SWITCHBOOT)
+int cmd_switchboot(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv);
+#endif
+
+#if defined(CONFIG_BOARDCTL_BOOT_IMAGE) && !defined(CONFIG_NSH_DISABLE_BOOT)
+  int cmd_boot(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv);
+#endif
+
 #if defined(CONFIG_BOARDCTL_RESET) && !defined(CONFIG_NSH_DISABLE_REBOOT)
   int cmd_reboot(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv);
 #endif
@@ -1191,6 +1233,11 @@ int cmd_pmconfig(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv);
 #  ifndef CONFIG_NSH_DISABLE_URLENCODE
   int cmd_urldecode(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv);
 #  endif
+#endif
+
+#ifdef CONFIG_NSH_ALIAS
+int cmd_alias(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv);
+int cmd_unalias(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv);
 #endif
 
 /****************************************************************************

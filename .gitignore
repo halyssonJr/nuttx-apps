@@ -11,6 +11,7 @@
 *.lib
 *.lst
 *.o
+*.wo
 *.obj
 *.rel
 *.src
@@ -28,6 +29,7 @@
 /romfs.img
 /staging
 /symtab_apps.c
+/wasm
 cscope.out
 Make.dep
 .context
@@ -35,3 +37,4 @@ Make.dep
 .dirlinks
 .vscode
 .DS_Store
+testing/nist-sts/*

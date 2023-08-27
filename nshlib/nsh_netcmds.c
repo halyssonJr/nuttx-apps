@@ -167,7 +167,7 @@ static inline void net_statistics(FAR struct nsh_vtbl_s *vtbl)
   nsh_catfile(vtbl, "ifconfig", CONFIG_NSH_PROC_MOUNTPOINT "/net/stat");
 }
 #else
-# define net_statistics(vtbl)
+#  define net_statistics(vtbl)
 #endif
 
 /****************************************************************************
@@ -580,6 +580,7 @@ int cmd_ifconfig(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv)
   FAR void *handle;
 #endif
   int ret;
+  int mtu = 0;
 
   /* With one or no arguments, ifconfig simply shows the status of the
    * network device:
@@ -720,6 +721,22 @@ int cmd_ifconfig(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv)
 
                   continue;
                 }
+              else if (!strcmp(tmp, "mtu"))
+                {
+                  if (argc - 1 >= i + 1)
+                    {
+                      mtu = atoi(argv[i + 1]);
+                      i++;
+                      if (mtu < 1280)
+                        {
+                          mtu = 1280;
+                        }
+                    }
+                  else
+                    {
+                      badarg = true;
+                    }
+                }
               else if (hostip == NULL && i <= 4)
                 {
                   /* Let first non-option be host ip, to support inet/inet6
@@ -757,6 +774,12 @@ int cmd_ifconfig(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv)
       nsh_sethwaddr(ifname, &macaddr);
     }
 #endif
+
+  if (mtu != 0)
+    {
+      netlib_set_mtu(ifname, mtu);
+      return OK;
+    }
 
   /* Set IP address */
 

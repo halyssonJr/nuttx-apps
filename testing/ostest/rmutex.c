@@ -22,8 +22,10 @@
  * Included Files
  ****************************************************************************/
 
-#include <stdio.h>
+#include <assert.h>
 #include <pthread.h>
+#include <stdio.h>
+
 #include "ostest.h"
 
 /****************************************************************************
@@ -205,4 +207,5 @@ void recursive_mutex_test(void)
     }
 
   printf("recursive_mutex_test: Complete\n");
+  pthread_mutex_destroy(&mut);
 }

@@ -23,9 +23,12 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+
+#include <assert.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <fcntl.h>
+
 #include "ostest.h"
 
 /****************************************************************************
@@ -38,7 +41,7 @@ static FAR char buffer[1024];
  * Public Functions
  ****************************************************************************/
 
-int dev_null(void)
+int dev_null_test(void)
 {
   int nbytes;
   int fd;

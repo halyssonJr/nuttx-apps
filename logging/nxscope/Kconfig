@@ -11,7 +11,6 @@ if LOGGING_NXSCOPE
 
 config LOGGING_NXSCOPE_INTF_SERIAL
 	bool "NxScope serial port interface support"
-	select SERIAL_TERMIOS
 	default n
 	---help---
 		For details, see logging/nxscope/nxscope_iserial.c
@@ -52,5 +51,13 @@ config LOGGING_NXSCOPE_CRICHANNELS
 	default n
 	---help---
 		Enable the support for non-buffered critical channels
+
+config LOGGING_NXSCOPE_DISABLE_PUTLOCK
+	bool "NxScope disable lock in channels put interfaces"
+	default n
+	---help---
+		This option disables lock in channels put interfaces.
+		In that case, the user is responsible for ensuring
+		thread-safe operations with nxscope_lock/nxscope_unlock functions.
 
 endif # LOGGING_NXSCOPE

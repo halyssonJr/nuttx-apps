@@ -52,8 +52,11 @@ CFLAGS += -Wno-shadow
 CFLAGS += -DDEF_THREADPOOL_SIZE=CONFIG_LIBUV_THREADPOOL_SIZE
 CFLAGS += -DDEF_THREADPOOL_STACKSIZE=CONFIG_LIBUV_THREAD_STACKSIZE
 
-GCCVER = $(shell $(CC) --version | grep gcc | sed -r 's/.* ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
-ifeq ($(GCCVER),12.2.1)
+ifeq ($(GCCVER),)
+  export GCCVER = $(shell $(CC) --version | grep gcc | sed -r 's/.* ([0-9]+\.[0-9]+).*/\1/' | cut -d'.' -f1)
+endif
+
+ifeq ($(GCCVER),12)
   CFLAGS += -Wno-dangling-pointer
 endif
 
@@ -102,9 +105,12 @@ ifneq ($(CONFIG_LIBC_DLFCN),)
 CSRCS += dl.c
 endif
 
-ifneq ($(CONFIG_NET),)
+ifneq ($(CONFIG_LIBC_NETDB),)
 CSRCS += getaddrinfo.c
 CSRCS += getnameinfo.c
+endif
+
+ifneq ($(CONFIG_NET),)
 CSRCS += inet.c
 endif
 

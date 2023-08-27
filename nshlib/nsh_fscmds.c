@@ -25,6 +25,7 @@
 #include <nuttx/config.h>
 
 #include <sys/types.h>
+#include <ctype.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -40,6 +41,8 @@
 #include <libgen.h>
 #include <errno.h>
 #include <debug.h>
+
+#include "nsh.h"
 
 #if !defined(CONFIG_DISABLE_MOUNTPOINT)
 #  include <sys/mount.h>
@@ -83,6 +86,12 @@
 #define LSFLAGS_SIZE          1
 #define LSFLAGS_LONG          2
 #define LSFLAGS_RECURSIVE     4
+#define LSFLAGS_UID_GID       8
+#define LSFLAGS_HUMANREADBLE  16
+
+#define KB                   (1UL << 10)
+#define MB                   (1UL << 20)
+#define GB                   (1UL << 30)
 
 /****************************************************************************
  * Private Functions
@@ -117,9 +126,11 @@ static int ls_handler(FAR struct nsh_vtbl_s *vtbl, FAR const char *dirpath,
 
   /* Check if any options will require that we stat the file */
 
-  if ((lsflags & (LSFLAGS_SIZE | LSFLAGS_LONG)) != 0)
+  if ((lsflags & (LSFLAGS_SIZE | LSFLAGS_LONG | LSFLAGS_UID_GID)) != 0)
     {
       struct stat buf;
+
+      memset(&buf, 0, sizeof(struct stat));
 
       /* stat the file */
 
@@ -211,7 +222,15 @@ static int ls_handler(FAR struct nsh_vtbl_s *vtbl, FAR const char *dirpath,
               details[2] = 'w';
             }
 
-          if ((buf.st_mode & S_IXUSR) != 0)
+          if ((buf.st_mode & S_IXUSR) != 0 && (buf.st_mode & S_ISUID) != 0)
+            {
+              details[3] = 's';
+            }
+          else if ((buf.st_mode & S_ISUID) != 0)
+            {
+              details[3] = 'S';
+            }
+          else if ((buf.st_mode & S_IXUSR) != 0)
             {
               details[3] = 'x';
             }
@@ -226,7 +245,15 @@ static int ls_handler(FAR struct nsh_vtbl_s *vtbl, FAR const char *dirpath,
               details[5] = 'w';
             }
 
-          if ((buf.st_mode & S_IXGRP) != 0)
+          if ((buf.st_mode & S_IXGRP) != 0 && (buf.st_mode & S_ISGID) != 0)
+            {
+              details[6] = 's';
+            }
+          else if ((buf.st_mode & S_ISGID) != 0)
+            {
+              details[6] = 'S';
+            }
+          else if ((buf.st_mode & S_IXGRP) != 0)
             {
               details[6] = 'x';
             }
@@ -249,9 +276,35 @@ static int ls_handler(FAR struct nsh_vtbl_s *vtbl, FAR const char *dirpath,
           nsh_output(vtbl, " %s", details);
         }
 
+#ifdef CONFIG_SCHED_USER_IDENTITY
+      if ((lsflags & LSFLAGS_UID_GID) != 0)
+        {
+          nsh_output(vtbl, "%8d", buf.st_uid);
+          nsh_output(vtbl, "%8d", buf.st_gid);
+        }
+#endif
+
       if ((lsflags & LSFLAGS_SIZE) != 0)
         {
-          nsh_output(vtbl, "%8" PRIdOFF, buf.st_size);
+          if (lsflags & LSFLAGS_HUMANREADBLE && buf.st_size >= KB)
+            {
+              if (buf.st_size >= GB)
+                {
+                  nsh_output(vtbl, "%7.1fG", (float)buf.st_size / GB);
+                }
+              else if (buf.st_size >= MB)
+                {
+                  nsh_output(vtbl, "%7.1fM", (float)buf.st_size / MB);
+                }
+              else
+                {
+                  nsh_output(vtbl, "%7.1fK", (float)buf.st_size / KB);
+                }
+            }
+          else
+            {
+              nsh_output(vtbl, "%8" PRIdOFF, buf.st_size);
+            }
         }
     }
 
@@ -352,6 +405,60 @@ static int ls_recursive(FAR struct nsh_vtbl_s *vtbl, FAR const char *dirpath,
 }
 
 #endif /* !CONFIG_NSH_DISABLE_LS */
+
+/****************************************************************************
+ * Name: fdinfo_callback
+ ****************************************************************************/
+
+#if defined(CONFIG_FS_PROCFS) && !defined(CONFIG_NSH_DISABLE_FDINFO)
+static int fdinfo_callback(FAR struct nsh_vtbl_s *vtbl,
+                           FAR const char *dirpath,
+                           FAR struct dirent *entryp, FAR void *pvarg)
+{
+  FAR char *filepath;
+  int ret;
+  int i;
+
+  UNUSED(pvarg);
+
+  if (!DIRENT_ISDIRECTORY(entryp->d_type))
+    {
+      /* Not a directory, let's skip it */
+
+      return OK;
+    }
+
+  /* Check name */
+
+  for (i = 0; entryp->d_name[i] != '\0'; i++)
+    {
+      if (!isdigit(entryp->d_name[i]))
+        {
+          /* Name contains something other than a numeric character */
+
+          return OK;
+        }
+    }
+
+  /* Let's initialize all the information */
+
+  ret = asprintf(&filepath, "%s/%s/group/fd", dirpath, entryp->d_name);
+  if (ret < 0)
+    {
+      nsh_error(vtbl, g_fmtcmdfailed, "fdinfo", "asprintf", NSH_ERRNO);
+    }
+
+  nsh_output(vtbl, "\npid:%s", entryp->d_name);
+  ret = nsh_catfile(vtbl, "fdinfo", filepath);
+  if (ret < 0)
+    {
+      nsh_error(vtbl, g_fmtcmdfailed, "fdinfo", "nsh_catfaile", NSH_ERRNO);
+    }
+
+  free(filepath);
+  return ret;
+}
+#endif
 
 /****************************************************************************
  * Public Functions
@@ -1255,12 +1362,12 @@ int cmd_ls(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv)
   /* Get the ls options */
 
   int option;
-  while ((option = getopt(argc, argv, "lRs")) != ERROR)
+  while ((option = getopt(argc, argv, "lRsh")) != ERROR)
     {
       switch (option)
         {
           case 'l':
-            lsflags |= (LSFLAGS_SIZE | LSFLAGS_LONG);
+            lsflags |= (LSFLAGS_SIZE | LSFLAGS_LONG | LSFLAGS_UID_GID);
             break;
 
           case 'R':
@@ -1269,6 +1376,10 @@ int cmd_ls(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv)
 
           case 's':
             lsflags |= LSFLAGS_SIZE;
+            break;
+
+          case 'h':
+            lsflags |= LSFLAGS_HUMANREADBLE;
             break;
 
           case '?':
@@ -1911,12 +2022,18 @@ static int unlink_recursive(FAR char *path)
 
 int cmd_rm(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv)
 {
-  UNUSED(argc);
-
   bool recursive = (strcmp(argv[1], "-r") == 0);
-  FAR char *fullpath = nsh_getfullpath(vtbl, recursive ? argv[2] : argv[1]);
+  FAR char *fullpath;
   char buf[PATH_MAX];
   int ret = ERROR;
+
+  if (recursive && argc == 2)
+    {
+      nsh_error(vtbl, g_fmtargrequired, argv[0]);
+      return ret;
+    }
+
+  fullpath = nsh_getfullpath(vtbl, recursive ? argv[2] : argv[1]);
 
   if (fullpath != NULL)
     {
@@ -1996,7 +2113,6 @@ int cmd_cmp(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv)
 
   FAR char *path1 = NULL;
   FAR char *path2 = NULL;
-  off_t total_read = 0;
   int fd1 = -1;
   int fd2 = -1;
   int ret = ERROR;
@@ -2059,14 +2175,13 @@ int cmd_cmp(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv)
           goto errout_with_fd2;
         }
 
-      total_read += nbytesread1 > nbytesread2 ? nbytesread2 : nbytesread1;
-
       /* Compare the file data */
 
       if (nbytesread1 != nbytesread2 ||
           memcmp(buf1, buf2, nbytesread1) != 0)
         {
-          nsh_error(vtbl, "files differ: byte %" PRIuOFF "\n", total_read);
+          nsh_error(vtbl, "files differ: byte %zd\n",
+                    nbytesread1 > nbytesread2 ? nbytesread2 : nbytesread1);
           goto errout_with_fd2;
         }
 
@@ -2206,4 +2321,44 @@ int cmd_truncate(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv)
   return ret;
 }
 #endif
+#endif
+
+/****************************************************************************
+ * Name: cmd_fdinfo
+ ****************************************************************************/
+
+#if defined(CONFIG_FS_PROCFS) && !defined(CONFIG_NSH_DISABLE_FDINFO)
+int cmd_fdinfo(FAR struct nsh_vtbl_s *vtbl, int argc, FAR char **argv)
+{
+  UNUSED(argc);
+
+  if (argv[1] != NULL)
+    {
+      FAR char *fdpath = NULL;
+      int ret;
+
+      /* The directories of the processes are displayed numerically */
+
+      if (!isdigit(argv[1][0]))
+        {
+          nsh_error(vtbl, g_fmtcmdfailed, "fdinfo",
+                   "not process id", NSH_ERRNO);
+          return ERROR;
+        }
+
+      ret = asprintf(&fdpath, "%s/%s/group/fd",
+                     CONFIG_NSH_PROC_MOUNTPOINT, argv[1]);
+      if (ret < 0)
+        {
+          return ret;
+        }
+
+      ret = nsh_catfile(vtbl, argv[0], fdpath);
+      free(fdpath);
+      return ret;
+    }
+
+  return nsh_foreach_direntry(vtbl, "fdinfo", CONFIG_NSH_PROC_MOUNTPOINT,
+                              fdinfo_callback, NULL);
+}
 #endif

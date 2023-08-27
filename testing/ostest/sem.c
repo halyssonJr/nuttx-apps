@@ -22,10 +22,12 @@
  * Included Files
  ****************************************************************************/
 
-#include <stdio.h>
+#include <assert.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <sched.h>
+#include <stdio.h>
+
 #include "ostest.h"
 
 /****************************************************************************
@@ -238,6 +240,15 @@ void sem_test(void)
       ASSERT(false);
     }
 
+  /* Make sure waiter_thread1 and waiter_thread2 in sem_wait */
+
+  do
+    {
+      sem_getvalue(&sem, &status);
+      usleep(10 * 1000L);
+    }
+  while (status != -2);
+
   printf("sem_test: Starting poster thread 3\n");
   status = pthread_attr_init(&attr);
   if (status != 0)
@@ -303,4 +314,6 @@ void sem_test(void)
       pthread_join(poster_thread, NULL);
     }
 #endif
+
+  sem_destroy(&sem);
 }

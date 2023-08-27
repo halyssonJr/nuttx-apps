@@ -24,10 +24,11 @@
 
 #include <sys/types.h>
 
+#include <assert.h>
+#include <debug.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <debug.h>
 #include <unistd.h>
 
 #include <nuttx/audio/audio.h>
@@ -53,9 +54,6 @@ int nxplayer_fill_common(int fd, FAR struct ap_buffer_s *apb)
   apb->curbyte = 0;
   apb->flags   = 0;
 
-#ifdef CONFIG_NXPLAYER_HTTP_STREAMING_SUPPORT
-  /* read data up to nmaxbytes from network */
-
   while (0 < apb->nbytes && apb->nbytes < apb->nmaxbytes)
     {
       int n   = apb->nmaxbytes - apb->nbytes;
@@ -68,7 +66,6 @@ int nxplayer_fill_common(int fd, FAR struct ap_buffer_s *apb)
 
       apb->nbytes += ret;
     }
-#endif
 
   if (apb->nbytes < apb->nmaxbytes)
     {

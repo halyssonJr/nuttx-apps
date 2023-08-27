@@ -24,11 +24,13 @@
 
 #include <nuttx/config.h>
 
-#include <sys/wait.h>
+#include <assert.h>
+#include <errno.h>
+#include <sched.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <signal.h>
-#include <errno.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "ostest.h"
@@ -118,7 +120,7 @@ static void waitpid_last(void)
   printf("waitpid_last: Waiting for PID=%d with waitpid()\n",
          g_waitpids[NCHILDREN - 1]);
 
-  ret = (int)waitpid(g_waitpids[NCHILDREN - 1], &stat_loc, 0);
+  ret = waitpid(g_waitpids[NCHILDREN - 1], &stat_loc, 0);
   if (ret < 0)
     {
       int errcode = errno;

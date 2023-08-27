@@ -24,23 +24,24 @@
 
 #include <nuttx/config.h>
 
-#include <sys/types.h>
-#include <sys/ioctl.h>
-
-#include <stdint.h>
+#include <assert.h>
+#include <debug.h>
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <sched.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <assert.h>
-#include <errno.h>
-#include <dirent.h>
-#include <debug.h>
+#include <sys/ioctl.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <nuttx/audio/audio.h>
+
 #include "system/nxrecorder.h"
 
 /****************************************************************************
@@ -1014,6 +1015,8 @@ int nxrecorder_recordinternal(FAR struct nxrecorder_s *precorder,
   pthread_attr_t           tattr;
   struct audio_caps_desc_s cap_desc;
   struct ap_buffer_info_s  buf_info;
+  struct audio_caps_s      caps;
+  int                      min_channels;
   int                      ret;
   int                      subfmt = AUDIO_FMT_UNDEF;
 
@@ -1031,7 +1034,8 @@ int nxrecorder_recordinternal(FAR struct nxrecorder_s *precorder,
 
   /* Test that the specified file exists */
 
-  if ((precorder->fd = open(pfilename, O_WRONLY | O_CREAT | O_TRUNC)) == -1)
+  if ((precorder->fd = open(pfilename, O_WRONLY | O_CREAT | O_TRUNC,
+                            0666)) == -1)
     {
       /* File not found.  Test if its in the mediadir */
 
@@ -1081,6 +1085,22 @@ int nxrecorder_recordinternal(FAR struct nxrecorder_s *precorder,
       auderr("ERROR: Failed to reserve device: %d\n", ret);
       ret = -errno;
       goto err_out;
+    }
+
+  caps.ac_len = sizeof(caps);
+  caps.ac_type = AUDIO_TYPE_INPUT;
+  caps.ac_subtype = AUDIO_TYPE_QUERY;
+
+  if (ioctl(precorder->dev_fd, AUDIOIOC_GETCAPS,
+      (unsigned long)&caps) == caps.ac_len)
+    {
+      min_channels = caps.ac_channels >> 4;
+
+      if (min_channels != 0 && nchannels < min_channels)
+        {
+          ret = -EINVAL;
+          goto err_out;
+        }
     }
 
 #ifdef CONFIG_AUDIO_MULTI_SESSION
