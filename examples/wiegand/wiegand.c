@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
+
 #include <nuttx/wiegand/wiegand.h>
 
 /****************************************************************************
@@ -34,18 +35,45 @@
  ****************************************************************************/
 
 /****************************************************************************
- * wiegand
+ * Wiegand
  ****************************************************************************/
 
 int main(int argc, FAR char *argv[])
 {
   int fd;
-  fd = open ("/dev/wiega0",O_RDONLY);
-  if( fd < 0)
-  {
-    printf("Erro: Failed to open \n");
-  }
-  
+  int ret;
+  struct wiegand_data_s data;
+
+  fd = open ("/dev/wiega0", O_RDONLY);
+
+  if (fd < 0)
+    {
+      printf("Erro: Failed to open \n");
+    }
+
+  printf("Wiegand app is running\n");
+
+  while (1)
+    {
+      ret = read(fd, &data, sizeof(data));
+      if (ret < 0)
+        {
+          ;
+        }
+     else 
+        {
+          printf("Read successful.\n");
+          printf(" ABA Code: %d\n FC: %04x \n ID: %06x\n", 
+            data.aba_code,
+            data.facility_code, 
+            data.id);
+          break;
+        }
+
+      sleep(1);
+    }
+
   close (fd);
+
   return 0;
 }
