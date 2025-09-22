@@ -38,7 +38,6 @@
 #define CMUX_BIT7 (7)
 
 #define CMUX_BUFFER_SZ          (2048)
-#define CMUX_CHANNEL_NAME_SZ    (64)
 #define CMUX_FRAME_MAX_SIZE     (127) /* Maximum frame size. Range: 1–32768. Default value: 127 */
 
 /**
@@ -159,24 +158,6 @@ struct cmux_stream_buffer_s {
   int flag_found;
   unsigned long received_count;
   unsigned long dropped_count;
-};
-
-struct cmux_channel_s
-{
-    int master_fd;
-    int slave_fd;
-    int dlci; /* Data Link Connection Identifier */
-    char slave_path[CMUX_CHANNEL_NAME_SZ]; /* Path do slave (/dev/pts/X) */
-    bool active;
-    time_t last_activity;
-};
-
-struct cmux_handle_s
-{
-    int fd;
-    FAR const char * cmux_script;
-    struct cmux_channel_s *channels;
-    struct cmux_stream_buffer_s *stream;
 };
 
 struct cmux_stream_buffer_s *cmux_stream_buffer_create(void);

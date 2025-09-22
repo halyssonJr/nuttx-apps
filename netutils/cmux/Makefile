@@ -23,6 +23,6 @@
 include $(APPDIR)/Make.defs
 
 CSRCS = cmux_frame.c
-CSRCS += cmux_protocol.c
+CSRCS += cmux.c
 
 include $(APPDIR)/Application.mk
