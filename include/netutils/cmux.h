@@ -39,9 +39,11 @@
 struct cmux_settings_s
 {
     FAR const char *tty_name;
-    FAR const char *script;
+    FAR const char * script;
     int total_channels;
 };
+
+typedef struct cmux_session_s cmux_session_t;
 
 /****************************************************************************
  * Public Function Prototypes

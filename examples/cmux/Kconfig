@@ -1,0 +1,29 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config EXAMPLES_CMUX
+	tristate "CMUX example"
+	default n
+	---help---
+		Enable the CMUX example
+
+if EXAMPLES_CMUX
+
+config EXAMPLES_CMUX_PROGNAME
+	string "Program name"
+	default "cmux"
+	---help---
+		This is the name of the program that will be used when the NSH ELF
+		program is installed.
+
+config EXAMPLES_CMUX_PRIORITY
+	int "CMUX task priority"
+	default 100
+
+config EXAMPLES_CMUX_STACKSIZE
+	int "CMUX stack size"
+	default DEFAULT_TASK_STACKSIZE
+
+endif
